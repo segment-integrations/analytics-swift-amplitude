@@ -2,72 +2,72 @@ name: Swift
 
 on:
   push:
-	branches: [ main ]
+    branches: [ main ]
   pull_request:
-	branches: [ main ]
+    branches: [ main ]
 
 jobs:
   cancel_previous:
-	runs-on: ubuntu-latest
-	steps:
-	- uses: styfle/cancel-workflow-action@0.9.1
-	  with:
-		workflow_id: ${{ github.event.workflow.id }}
-		
+    runs-on: ubuntu-latest
+    steps:
+    - uses: styfle/cancel-workflow-action@0.9.1
+      with:
+        workflow_id: ${{ github.event.workflow.id }}
+        
 #  build_and_test_spm_mac:
-#	needs: cancel_previous
-#	runs-on: macos-11
-#	steps:
-#	- uses: maxim-lobanov/setup-xcode@v1
-#	  with:
-#		xcode-version: '13.0'
-#	- uses: actions/checkout@v2
-#	- uses: webfactory/ssh-agent@v0.5.3
-#	  with:
-#		ssh-private-key: ${{ secrets.SOVRAN_SSH_KEY }}
-#	- name: Build
-#	  run: swift build
-#	- name: Run tests
-#	  run: swift test
+#    needs: cancel_previous
+#    runs-on: macos-11
+#    steps:
+#    - uses: maxim-lobanov/setup-xcode@v1
+#      with:
+#        xcode-version: '13.0'
+#    - uses: actions/checkout@v2
+#    - uses: webfactory/ssh-agent@v0.5.3
+#      with:
+#        ssh-private-key: ${{ secrets.SOVRAN_SSH_KEY }}
+#    - name: Build
+#      run: swift build
+#    - name: Run tests
+#      run: swift test
 
   build_and_test_ios:
-	needs: cancel_previous
-	runs-on: macos-11
-	steps:
-	- uses: maxim-lobanov/setup-xcode@v1
-	  with:
-		xcode-version: '13.0'
-	- uses: actions/checkout@v2
-	- uses: actions/cache@v2
-	  with:
-		path: /Users/runner/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
-		key: ${{ runner.os }}-spm-ios-${{ hashFiles('**/Package.resolved') }}
-		restore-keys: |
-		  ${{ runner.os }}-spm-ios
-	- uses: webfactory/ssh-agent@v0.5.3
-	  with:
-		ssh-private-key: ${{ secrets.SOVRAN_SSH_KEY }}
-	- run: xcodebuild -scheme Segment-Package test -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 11'
-	
+    needs: cancel_previous
+    runs-on: macos-11
+    steps:
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '13.0'
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: /Users/runner/Library/Developer/Xcode/DerivedData/**/SourcePackages/checkouts
+        key: ${{ runner.os }}-spm-ios-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-ios
+    - uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.SOVRAN_SSH_KEY }}
+    - run: xcodebuild -scheme Segment-Package test -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 11'
+
   build_and_test_examples:
-	needs: cancel_previous
-	runs-on: macos-11
-	steps:
-	- uses: maxim-lobanov/setup-xcode@v1
-	  with:
-		xcode-version: '13.0'
-	- uses: actions/checkout@v2
-	- uses: actions/cache@v2
-	  with:
-		path: /Users/runner/Library/Developer/Xcode/DerivedData
-		key: ${{ runner.os }}-spm-examples-${{ hashFiles('**/Package.resolved') }}
-		restore-keys: |
-		  ${{ runner.os }}-spm-examples
-	- uses: webfactory/ssh-agent@v0.5.3
-	  with:
-		ssh-private-key: ${{ secrets.SOVRAN_SSH_KEY }}
-	- name: build for ios simulator
-	  run: |
-		  cd Example/BasicExample
-		  xcodebuild -workspace "BasicExample.xcworkspace" -scheme "BasicExample" -sdk iphonesimulator		  
-  
+    needs: cancel_previous
+    runs-on: macos-11
+    steps:
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '13.0'
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      with:
+        path: /Users/runner/Library/Developer/Xcode/DerivedData
+        key: ${{ runner.os }}-spm-examples-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-examples
+    - uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.SOVRAN_SSH_KEY }}
+    - name: build for ios simulator
+      run: |
+          cd Example/BasicExample
+          xcodebuild -workspace "BasicExample.xcworkspace" -scheme "BasicExample" -sdk iphonesimulator
+          
