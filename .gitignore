@@ -89,3 +89,5 @@ fastlane/test_output
 
 iOSInjectionProject/
 /Example/BasicExample/BasicExample.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+.DS_Store
+/.swiftpm
