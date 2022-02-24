@@ -22,7 +22,7 @@ let package = Package(
         .package(
             name: "Segment",
             url: "https://github.com/segmentio/analytics-swift.git",
-            .branch("main")
+            from: "1.1.1"
         )
     ],
     targets: [
