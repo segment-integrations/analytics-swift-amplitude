@@ -156,3 +156,9 @@ extension AmplitudeSession {
         sessionID = -1
     }
 }
+
+extension AmplitudeSession: VersionedPlugin {
+    public static func version() -> String {
+        return __destination_version
+    }
+}

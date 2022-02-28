@@ -5,9 +5,9 @@
         "package": "Segment",
         "repositoryURL": "https://github.com/segmentio/analytics-swift.git",
         "state": {
-          "branch": "main",
-          "revision": "9c7dff28353e8942c7bc3aa83a7ddbc4e2f763b7",
-          "version": null
+          "branch": null,
+          "revision": "76316a5009502de6e7c2788c295e9afc68793cd3",
+          "version": "1.1.2"
         }
       },
       {

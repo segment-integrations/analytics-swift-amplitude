@@ -22,7 +22,7 @@ let package = Package(
         .package(
             name: "Segment",
             url: "https://github.com/segmentio/analytics-swift.git",
-            from: "1.1.1"
+            from: "1.1.2"
         )
     ],
     targets: [
@@ -31,9 +31,8 @@ let package = Package(
         .target(
             name: "SegmentAmplitude",
             dependencies: ["Segment"]),
-        .testTarget(
-            name: "SegmentAmplitude-Tests",
-            dependencies: ["SegmentAmplitude"]),
+        
+        // TESTS ARE HANDLED VIA THE EXAMPLE APP.
     ]
 )
 
