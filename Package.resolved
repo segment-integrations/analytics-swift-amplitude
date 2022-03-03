@@ -1,0 +1,25 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "Segment",
+        "repositoryURL": "https://github.com/segmentio/analytics-swift.git",
+        "state": {
+          "branch": null,
+          "revision": "76316a5009502de6e7c2788c295e9afc68793cd3",
+          "version": "1.1.2"
+        }
+      },
+      {
+        "package": "Sovran",
+        "repositoryURL": "https://github.com/segmentio/Sovran-Swift.git",
+        "state": {
+          "branch": null,
+          "revision": "944c17d7c46bd95fc37f09136cabd172be5b413b",
+          "version": "1.0.3"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
