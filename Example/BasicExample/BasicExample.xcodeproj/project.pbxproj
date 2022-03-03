@@ -604,8 +604,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/segmentio/analytics-swift";
 			requirement = {
-				branch = main;
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.2;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
