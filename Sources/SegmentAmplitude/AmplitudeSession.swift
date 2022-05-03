@@ -39,7 +39,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     
     private var sessionTimer: Timer?
     private var sessionID: TimeInterval?
-    private let fireTime = TimeInterval(300)
+    private let fireTime = TimeInterval(60)
     
     public init() { }
     
@@ -115,6 +115,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     }
 
     public func applicationWillResignActive(application: UIApplication?) {
+        // Exposed if reacting to lifecycle events is needed
     }
 }
 
