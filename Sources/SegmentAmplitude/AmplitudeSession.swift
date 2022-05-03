@@ -39,7 +39,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     
     private var sessionTimer: Timer?
     private var sessionID: TimeInterval?
-    private let fireTime = TimeInterval(60)
+    private let fireTime = TimeInterval(300)
     
     public init() { }
     
