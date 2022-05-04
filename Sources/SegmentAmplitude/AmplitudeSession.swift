@@ -115,7 +115,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     }
 
     public func applicationWillResignActive(application: UIApplication?) {
-        stopTimer()
+        // Exposed if reacting to lifecycle events is needed
     }
 }
 
@@ -124,6 +124,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
 extension AmplitudeSession {
     func insertSession(event: RawEvent) -> RawEvent {
         var returnEvent = event
+        refreshSessionID()
         if var integrations = event.integrations?.dictionaryValue,
            let sessionID = sessionID {
             
@@ -136,15 +137,22 @@ extension AmplitudeSession {
     @objc
     func handleTimerFire(_ timer: Timer) {
         stopTimer()
+    }
+    
+    func refreshSessionID() {
+        if (sessionID == nil || sessionID == -1)
+        {
+            sessionID = Date().timeIntervalSince1970
+        }
         startTimer()
     }
     
     func startTimer() {
+        sessionTimer?.invalidate()
         sessionTimer = Timer(timeInterval: fireTime, target: self,
                              selector: #selector(handleTimerFire(_:)),
                              userInfo: nil, repeats: true)
         sessionTimer?.tolerance = 0.3
-        sessionID = Date().timeIntervalSince1970
         if let sessionTimer = sessionTimer {
             // Use the RunLoop current to avoid retaining self
             RunLoop.current.add(sessionTimer, forMode: .common)
