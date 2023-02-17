@@ -148,20 +148,26 @@ extension AmplitudeSession {
     }
     
     func startTimer() {
-        sessionTimer?.invalidate()
-        sessionTimer = Timer(timeInterval: fireTime, target: self,
-                             selector: #selector(handleTimerFire(_:)),
-                             userInfo: nil, repeats: true)
-        sessionTimer?.tolerance = 0.3
-        if let sessionTimer = sessionTimer {
-            // Use the RunLoop current to avoid retaining self
-            RunLoop.current.add(sessionTimer, forMode: .common)
+        // Starting and stopping the timer has to be done from the same thread; always dispatch to main queue
+        DispatchQueue.main.async {
+            self.sessionTimer?.invalidate()
+            self.sessionTimer = Timer(timeInterval: self.fireTime, target: self,
+                                      selector: #selector(self.handleTimerFire(_:)),
+                                      userInfo: nil, repeats: true)
+            self.sessionTimer?.tolerance = 0.3
+            if let sessionTimer = self.sessionTimer {
+                // Use the RunLoop current to avoid retaining self
+                RunLoop.current.add(sessionTimer, forMode: .common)
+            }
         }
     }
     
     func stopTimer() {
-        sessionTimer?.invalidate()
-        sessionID = -1
+        // Starting and stopping the timer has to be done from the same thread; always dispatch to main queue
+        DispatchQueue.main.async {
+            self.sessionTimer?.invalidate()
+            self.sessionID = -1
+        }
     }
 }
 
