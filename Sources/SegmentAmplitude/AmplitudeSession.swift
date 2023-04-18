@@ -30,6 +30,11 @@ import Foundation
 import Segment
 import UIKit
 
+@objc(SEGAmplitudeSession)
+public class ObjCAmplitudeSession: NSObject, ObjCPlugin, ObjCPluginShim {
+    public func instance() -> EventPlugin { return AmplitudeSession() }
+}
+
 public class AmplitudeSession: EventPlugin, iOSLifecycle {
     public var key = "Actions Amplitude"
     public var type = PluginType.enrichment
