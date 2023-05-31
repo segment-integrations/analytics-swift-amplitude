@@ -44,15 +44,14 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     
     private var sessionID: TimeInterval?
     private var lastEventFiredTime = Date()
-    private var sessionTimer = Date()
+    private var minSessionTime: TimeInterval = 5 * 60
+    private var backgroundTime: Date?
     
     public init() {
         if (sessionID == nil || sessionID == -1)
         {
             sessionID = Date().timeIntervalSince1970
         }
-        
-        sessionTimer = Calendar.current.date(byAdding: .minute, value: -5, to: Date())!
     }
     
     public func update(settings: Settings, type: UpdateType) {
@@ -68,6 +67,8 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
             return event
         }
         
+        lastEventFiredTime = Date()
+
         var result: T? = event
         switch result {
         case let r as IdentifyEvent:
@@ -122,18 +123,20 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     }
     
     public func applicationWillEnterForeground(application: UIApplication?) {
-        
-        print(lastEventFiredTime.timeIntervalSince(sessionTimer))
-        if lastEventFiredTime.timeIntervalSince(sessionTimer) >= 0 {
-            sessionID = Date().timeIntervalSince1970
-            
+        if let backgroundTime = self.backgroundTime {
+            if lastEventFiredTime > backgroundTime {
+                sessionID = Date().timeIntervalSince1970
+            }
         }
-        
         analytics?.log(message: "Amplitude Session ID: \(sessionID ?? -1)")
     }
     
     public func applicationWillResignActive(application: UIApplication?) {
         // Exposed if reacting to lifecycle events is needed
+    }
+    
+    public func applicationDidEnterBackground(application: UIApplication?) {
+        backgroundTime = Date(timeIntervalSinceNow:  -minSessionTime)
     }
 }
 
@@ -142,8 +145,6 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
 extension AmplitudeSession {
     func insertSession(event: RawEvent) -> RawEvent {
         var returnEvent = event
-        lastEventFiredTime = Date()
-        
         if var integrations = event.integrations?.dictionaryValue,
            let sessionID = sessionID {
             
