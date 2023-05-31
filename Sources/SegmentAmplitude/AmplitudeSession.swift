@@ -45,7 +45,6 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     private var sessionID: TimeInterval?
     private var lastEventFiredTime = Date()
     private var minSessionTime: TimeInterval = 5 * 60
-    private var backgroundTime: Date?
     
     public init() {
         if (sessionID == nil || sessionID == -1)
@@ -68,7 +67,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         }
         
         lastEventFiredTime = Date()
-
+        
         var result: T? = event
         switch result {
         case let r as IdentifyEvent:
@@ -123,11 +122,10 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     }
     
     public func applicationWillEnterForeground(application: UIApplication?) {
-        if let backgroundTime = self.backgroundTime {
-            if lastEventFiredTime > backgroundTime {
-                sessionID = Date().timeIntervalSince1970
-            }
+        if Date().timeIntervalSince(lastEventFiredTime) >= minSessionTime {
+            sessionID = Date().timeIntervalSince1970
         }
+        
         analytics?.log(message: "Amplitude Session ID: \(sessionID ?? -1)")
     }
     
@@ -135,9 +133,6 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         // Exposed if reacting to lifecycle events is needed
     }
     
-    public func applicationDidEnterBackground(application: UIApplication?) {
-        backgroundTime = Date(timeIntervalSinceNow:  -minSessionTime)
-    }
 }
 
 
