@@ -42,11 +42,16 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     
     var active = false
     
-    private var sessionTimer: Timer?
     private var sessionID: TimeInterval?
-    private let fireTime = TimeInterval(300)
+    private var lastEventFiredTime = Date()
+    private var minSessionTime: TimeInterval = 5 * 60
     
-    public init() { }
+    public init() {
+        if (sessionID == nil || sessionID == -1)
+        {
+            sessionID = Date().timeIntervalSince1970
+        }
+    }
     
     public func update(settings: Settings, type: UpdateType) {
         if settings.hasIntegrationSettings(key: key) {
@@ -61,20 +66,22 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
             return event
         }
         
+        lastEventFiredTime = Date()
+        
         var result: T? = event
         switch result {
-            case let r as IdentifyEvent:
-                result = self.identify(event: r) as? T
-            case let r as TrackEvent:
-                result = self.track(event: r) as? T
-            case let r as ScreenEvent:
-                result = self.screen(event: r) as? T
-            case let r as AliasEvent:
-                result = self.alias(event: r) as? T
-            case let r as GroupEvent:
-                result = self.group(event: r) as? T
-            default:
-                break
+        case let r as IdentifyEvent:
+            result = self.identify(event: r) as? T
+        case let r as TrackEvent:
+            result = self.track(event: r) as? T
+        case let r as ScreenEvent:
+            result = self.screen(event: r) as? T
+        case let r as AliasEvent:
+            result = self.alias(event: r) as? T
+        case let r as GroupEvent:
+            result = self.group(event: r) as? T
+        default:
+            break
         }
         return result
     }
@@ -115,13 +122,17 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     }
     
     public func applicationWillEnterForeground(application: UIApplication?) {
-        startTimer()
+        if Date().timeIntervalSince(lastEventFiredTime) >= minSessionTime {
+            sessionID = Date().timeIntervalSince1970
+        }
+        
         analytics?.log(message: "Amplitude Session ID: \(sessionID ?? -1)")
     }
-
+    
     public func applicationWillResignActive(application: UIApplication?) {
         // Exposed if reacting to lifecycle events is needed
     }
+    
 }
 
 
@@ -129,7 +140,6 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
 extension AmplitudeSession {
     func insertSession(event: RawEvent) -> RawEvent {
         var returnEvent = event
-        refreshSessionID()
         if var integrations = event.integrations?.dictionaryValue,
            let sessionID = sessionID {
             
@@ -137,42 +147,6 @@ extension AmplitudeSession {
             returnEvent.integrations = try? JSON(integrations as Any)
         }
         return returnEvent
-    }
-    
-    @objc
-    func handleTimerFire(_ timer: Timer) {
-        stopTimer()
-    }
-    
-    func refreshSessionID() {
-        if (sessionID == nil || sessionID == -1)
-        {
-            sessionID = Date().timeIntervalSince1970
-        }
-        startTimer()
-    }
-    
-    func startTimer() {
-        // Starting and stopping the timer has to be done from the same thread; always dispatch to main queue
-        DispatchQueue.main.async {
-            self.sessionTimer?.invalidate()
-            self.sessionTimer = Timer(timeInterval: self.fireTime, target: self,
-                                      selector: #selector(self.handleTimerFire(_:)),
-                                      userInfo: nil, repeats: true)
-            self.sessionTimer?.tolerance = 0.3
-            if let sessionTimer = self.sessionTimer {
-                // Use the RunLoop current to avoid retaining self
-                RunLoop.current.add(sessionTimer, forMode: .common)
-            }
-        }
-    }
-    
-    func stopTimer() {
-        // Starting and stopping the timer has to be done from the same thread; always dispatch to main queue
-        DispatchQueue.main.async {
-            self.sessionTimer?.invalidate()
-            self.sessionID = -1
-        }
     }
 }
 

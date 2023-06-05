@@ -18,12 +18,17 @@ struct BasicExampleApp: App {
     }
 }
 
+var instance: Analytics? = nil
+
 extension Analytics {
     static var main: Analytics {
-        let analytics = Analytics(configuration: Configuration(writeKey: "<YOUR WRITE KEY>")
-                    .flushAt(3)
-                    .trackApplicationLifecycleEvents(true))
-        analytics.add(plugin: AmplitudeSession())
-        return analytics
+        if instance == nil {
+            instance = Analytics(configuration: Configuration(writeKey: "<WRITE_KEY>")
+                        .flushAt(3)
+                        .trackApplicationLifecycleEvents(true))
+            instance?.add(plugin: AmplitudeSession())
+        }
+        
+        return instance!
     }
 }
