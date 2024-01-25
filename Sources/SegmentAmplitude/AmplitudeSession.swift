@@ -66,20 +66,22 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
             return event
         }
         
-        lastEventFiredTime = Date()
-        
         var result: T? = event
         switch result {
         case let r as IdentifyEvent:
             result = self.identify(event: r) as? T
+            lastEventFiredTime = Date()
         case let r as TrackEvent:
             result = self.track(event: r) as? T
         case let r as ScreenEvent:
             result = self.screen(event: r) as? T
+            lastEventFiredTime = Date()
         case let r as AliasEvent:
             result = self.alias(event: r) as? T
+            lastEventFiredTime = Date()
         case let r as GroupEvent:
             result = self.group(event: r) as? T
+            lastEventFiredTime = Date()
         default:
             break
         }
@@ -87,6 +89,10 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     }
     
     public func track(event: TrackEvent) -> TrackEvent? {
+        if event.event != "Application Opened" {
+            lastEventFiredTime = Date()
+        }
+        
         guard let returnEvent = insertSession(event: event) as? TrackEvent else {
             return nil
         }
@@ -119,6 +125,10 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
             return nil
         }
         return returnEvent
+    }
+    
+    public func reset() {
+         sessionID = nil
     }
     
     public func applicationWillEnterForeground(application: UIApplication?) {
