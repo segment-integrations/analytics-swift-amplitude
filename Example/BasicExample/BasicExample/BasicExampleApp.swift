@@ -23,7 +23,7 @@ var instance: Analytics? = nil
 extension Analytics {
     static var main: Analytics {
         if instance == nil {
-            instance = Analytics(configuration: Configuration(writeKey: "<WRITE_KEY>")
+            instance = Analytics(configuration: Configuration(writeKey: "7O86AjgXwDLHxwXapRDkSFvqRzLA5n1V")
                         .flushAt(3)
                         .trackApplicationLifecycleEvents(true))
             instance?.add(plugin: AmplitudeSession())

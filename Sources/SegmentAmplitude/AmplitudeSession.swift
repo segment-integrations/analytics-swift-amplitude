@@ -121,6 +121,10 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         return returnEvent
     }
     
+    public func reset() {
+         sessionID = nil
+    }
+    
     public func applicationWillEnterForeground(application: UIApplication?) {
         if Date().timeIntervalSince(lastEventFiredTime) >= minSessionTime {
             sessionID = Date().timeIntervalSince1970
