@@ -6,8 +6,17 @@
         "repositoryURL": "https://github.com/segmentio/analytics-swift",
         "state": {
           "branch": null,
-          "revision": "79fb17a5d4abf8f80e6a0935e57c7df7b670a6c0",
-          "version": "1.4.1"
+          "revision": "7eeb2abf8452153af056baae5369679589f10936",
+          "version": "1.5.9"
+        }
+      },
+      {
+        "package": "JSONSafeEncoder",
+        "repositoryURL": "https://github.com/segmentio/jsonsafeencoder-swift.git",
+        "state": {
+          "branch": null,
+          "revision": "8b70dc8c01b7b041912e30e29d2b488a43f782ac",
+          "version": "1.0.1"
         }
       },
       {
@@ -15,8 +24,8 @@
         "repositoryURL": "https://github.com/segmentio/Sovran-Swift.git",
         "state": {
           "branch": null,
-          "revision": "944c17d7c46bd95fc37f09136cabd172be5b413b",
-          "version": "1.0.3"
+          "revision": "a342b905f6baa64499cabdf61ccc185ec476b7b2",
+          "version": "1.1.1"
         }
       }
     ]
