@@ -36,7 +36,9 @@ public class ObjCAmplitudeSession: NSObject, ObjCPlugin, ObjCPluginShim {
 }
 
 public class AmplitudeSession: EventPlugin, iOSLifecycle {
-    public var key = "Actions Amplitude"
+    public var key: String {
+        destination.key
+    }
     public var type = PluginType.enrichment
     public weak var analytics: Analytics?
     
@@ -45,12 +47,11 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     private var sessionID: TimeInterval?
     private var lastEventFiredTime = Date()
     private var minSessionTime: TimeInterval = 5 * 60
-    
-    public init() {
-        if (sessionID == nil || sessionID == -1)
-        {
-            sessionID = Date().timeIntervalSince1970
-        }
+    private var destination: AmplitudeDestination
+
+    public init(destination: AmplitudeDestination = .amplitudeActions) {
+        self.destination = destination
+        sessionID = Date().timeIntervalSince1970
     }
     
     public func update(settings: Settings, type: UpdateType) {
