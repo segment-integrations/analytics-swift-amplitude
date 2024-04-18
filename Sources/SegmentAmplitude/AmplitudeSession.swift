@@ -38,7 +38,7 @@ public class ObjCAmplitudeSession: NSObject, ObjCPlugin, ObjCPluginShim {
 public class AmplitudeSession: EventPlugin, iOSLifecycle {
     public var key = "Actions Amplitude"
     public var type = PluginType.enrichment
-    public var analytics: Analytics?
+    public weak var analytics: Analytics?
     
     var active = false
     
