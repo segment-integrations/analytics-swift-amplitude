@@ -122,6 +122,9 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
             case "Application Backgrounded":
                 analytics?.track(name: Constants.ampAppBackgroundedEvent, properties: trackEvent.properties)
                 trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+            case "Application Foregrounded":
+                // amplitude doesn't need this one, it's redundant.
+                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
             default:
                 break
             }
