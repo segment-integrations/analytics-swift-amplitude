@@ -197,10 +197,9 @@ extension AmplitudeSession {
             return
         }
         // end previous session
-        analytics?.track(name: Constants.ampSessionEndEvent)
+        endSession()
         // start new session
         startNewSession()
-        analytics?.track(name: Constants.ampSessionStartEvent)
     }
     
     private func endSession() {
