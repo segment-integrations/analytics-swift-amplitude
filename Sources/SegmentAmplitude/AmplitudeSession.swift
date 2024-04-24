@@ -101,10 +101,9 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
             if eventName.contains(Constants.ampPrefix)
                 || eventName == Constants.ampSessionStartEvent
                 || eventName == Constants.ampSessionEndEvent {
-                trackEvent.integrations = try? JSON([
-                    "all": false,
-                    "\(key)": ["session_id": sessionID]
-                ])
+                var integrations = disableAllIntegrations(integrations: trackEvent.integrations)
+                integrations?.setValue(["session_id": sessionID], forKeyPath: KeyPath(key))
+                trackEvent.integrations = integrations
             }
             
             // handle events that need to be re-generated back to amplitude.
@@ -162,6 +161,16 @@ extension AmplitudeSession: VersionedPlugin {
 // MARK: - AmplitudeSession Helper Methods
 
 extension AmplitudeSession {
+    private func disableAllIntegrations(integrations: JSON?) -> JSON? {
+        var result = integrations
+        if let keys = integrations?.dictionaryValue?.keys {
+            for key in keys {
+                result?.setValue(false, forKeyPath: KeyPath(key))
+            }
+        }
+        return result
+    }
+    
     private func defaultEventHandler<T: RawEvent>(event: T) -> T? {
         guard let returnEvent = insertSession(event: event) as? T else {
             return nil
