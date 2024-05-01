@@ -94,14 +94,38 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     
     public func execute<T: RawEvent>(event: T?) -> T? {
         guard let event else { return nil }
-        guard let event = defaultEventHandler(event: event) else { return nil }
+        var workingEvent = defaultEventHandler(event: event)
         
-        if var trackEvent = event as? TrackEvent {
-            let eventName = trackEvent.event
+        // check if time has elapsed and kick of a new session if it has.
+        // this will send events back through to do the tasks; nothing really happens inline.
+        startNewSessionIfNecessary()
+        
+        // handle screen
+        if var screenEvent = workingEvent as? ScreenEvent, let screenName = screenEvent.name {
+            // if it's amp specific stuff, disable all the integrations except for amp.
+            if screenName.contains(Constants.ampPrefix) {
+                var integrations = disableAllIntegrations(integrations: screenEvent.integrations)
+                integrations?.setValue(["session_id": sessionID], forKeyPath: KeyPath(key))
+                screenEvent.integrations = integrations
+            } else {
+                var adjustedProps = screenEvent.properties
+                // amp needs the `name` in the properties
+                if adjustedProps == nil {
+                    adjustedProps = try? JSON(["name": screenName])
+                } else {
+                    adjustedProps?.setValue(screenName, forKeyPath: KeyPath("name"))
+                }
+                // this will come back through later for the above if statement.
+                analytics?.screen(title: Constants.ampScreenViewedEvent, properties: adjustedProps)
+            }
             
-            // check if time has elapsed and kick of a new session if it has.
-            // this will send events back through to do the tasks; nothing really happens inline.
-            startNewSessionIfNecessary()
+            workingEvent = screenEvent as? T
+        }
+        
+        // handle track
+        if var trackEvent = workingEvent as? TrackEvent {
+            let eventName = trackEvent.event
+        
             
             // if it's a start event, set a new sessionID
             if eventName == Constants.ampSessionStartEvent {
@@ -137,11 +161,11 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
                 break
             }
             
-            return trackEvent as? T
+            workingEvent = trackEvent as? T
         }
         
         lastEventTime = newTimestamp()
-        return event
+        return workingEvent
     }
     
     public func reset() {
