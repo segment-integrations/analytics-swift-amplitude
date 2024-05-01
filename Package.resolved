@@ -1,52 +1,32 @@
 {
-  "object": {
-    "pins": [
-      {
-        "package": "Amplitude-Swift",
-        "repositoryURL": "https://github.com/amplitude/Amplitude-Swift.git",
-        "state": {
-          "branch": null,
-          "revision": "891da3a2892df519a4ccf51a8442f8a5110623f0",
-          "version": "1.4.4"
-        }
-      },
-      {
-        "package": "analytics-connector-ios",
-        "repositoryURL": "https://github.com/amplitude/analytics-connector-ios.git",
-        "state": {
-          "branch": null,
-          "revision": "e2ca17ac735bcbc48b13062484541702ef45153d",
-          "version": "1.0.3"
-        }
-      },
-      {
-        "package": "Segment",
-        "repositoryURL": "https://github.com/segmentio/analytics-swift.git",
-        "state": {
-          "branch": null,
-          "revision": "7eeb2abf8452153af056baae5369679589f10936",
-          "version": "1.5.9"
-        }
-      },
-      {
-        "package": "JSONSafeEncoder",
-        "repositoryURL": "https://github.com/segmentio/jsonsafeencoder-swift.git",
-        "state": {
-          "branch": null,
-          "revision": "8b70dc8c01b7b041912e30e29d2b488a43f782ac",
-          "version": "1.0.1"
-        }
-      },
-      {
-        "package": "Sovran",
-        "repositoryURL": "https://github.com/segmentio/Sovran-Swift.git",
-        "state": {
-          "branch": null,
-          "revision": "a342b905f6baa64499cabdf61ccc185ec476b7b2",
-          "version": "1.1.1"
-        }
+  "pins" : [
+    {
+      "identity" : "analytics-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/segmentio/analytics-swift.git",
+      "state" : {
+        "revision" : "7eeb2abf8452153af056baae5369679589f10936",
+        "version" : "1.5.9"
       }
-    ]
-  },
-  "version": 1
+    },
+    {
+      "identity" : "jsonsafeencoder-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/segmentio/jsonsafeencoder-swift.git",
+      "state" : {
+        "revision" : "8b70dc8c01b7b041912e30e29d2b488a43f782ac",
+        "version" : "1.0.1"
+      }
+    },
+    {
+      "identity" : "sovran-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/segmentio/Sovran-Swift.git",
+      "state" : {
+        "revision" : "a342b905f6baa64499cabdf61ccc185ec476b7b2",
+        "version" : "1.1.1"
+      }
+    }
+  ],
+  "version" : 2
 }
