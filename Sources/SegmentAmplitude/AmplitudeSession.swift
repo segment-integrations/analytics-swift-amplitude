@@ -98,9 +98,11 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         if var trackEvent = event as? TrackEvent {
             let eventName = trackEvent.event
             
-            if eventName.contains(Constants.ampPrefix)
-                || eventName == Constants.ampSessionStartEvent
-                || eventName == Constants.ampSessionEndEvent {
+            if eventName.contains(Constants.ampPrefix) || eventName == Constants.ampSessionStartEvent || eventName == Constants.ampSessionEndEvent {
+                if eventName == Constants.ampSessionStartEvent {
+                    sessionID = newTimestamp()
+                }
+                
                 var integrations = disableAllIntegrations(integrations: trackEvent.integrations)
                 integrations?.setValue(["session_id": sessionID], forKeyPath: KeyPath(key))
                 trackEvent.integrations = integrations
@@ -186,7 +188,7 @@ extension AmplitudeSession {
     }
     
     private func startNewSession() {
-        sessionID = newTimestamp()
+        // session ID will get set the in `execute`.
         analytics?.track(name: Constants.ampSessionStartEvent)
     }
     
