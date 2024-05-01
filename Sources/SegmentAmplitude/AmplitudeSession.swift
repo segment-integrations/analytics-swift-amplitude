@@ -40,128 +40,247 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     public var type = PluginType.enrichment
     public weak var analytics: Analytics?
     
-    var active = false
+    internal struct Constants {
+        static let ampPrefix = "[Amplitude] "
+        
+        static let ampSessionEndEvent = "session_end"
+        static let ampSessionStartEvent = "session_start"
+        static let ampAppInstalledEvent = "\(ampPrefix)Application Installed"
+        static let ampAppUpdatedEvent = "\(ampPrefix)Application Updated"
+        static let ampAppOpenedEvent = "\(ampPrefix)Application Opened"
+        static let ampAppBackgroundedEvent = "\(ampPrefix)Application Backgrounded"
+        static let ampDeepLinkOpenedEvent = "\(ampPrefix)Deep Link Opened"
+        static let ampScreenViewedEvent = "\(ampPrefix)Screen Viewed"
+    }
     
-    private var sessionID: TimeInterval?
-    private var lastEventFiredTime = Date()
-    private var minSessionTime: TimeInterval = 5 * 60
+    @Atomic private var active = false
+    @Atomic private var inForeground: Bool = false
+    private var storage = Storage()
     
-    public init() {
-        if (sessionID == nil || sessionID == -1)
-        {
-            sessionID = Date().timeIntervalSince1970
+    @Atomic var sessionID: Int64 {
+        didSet {
+            storage.write(key: Storage.Constants.previousSessionID, value: sessionID)
+            //print("sessionID = \(sessionID)")
         }
     }
     
+    @Atomic var lastEventTime: Int64 {
+        didSet {
+            storage.write(key: Storage.Constants.lastEventTime, value: lastEventTime)
+        }
+    }
+    
+    public init() {
+        self.sessionID = storage.read(key: Storage.Constants.previousSessionID) ?? -1
+        self.lastEventTime = storage.read(key: Storage.Constants.lastEventTime) ?? -1
+        //print("startup sessionID = \(sessionID)")
+    }
+    
     public func update(settings: Settings, type: UpdateType) {
+        if type != .initial { return }
+            
         if settings.hasIntegrationSettings(key: key) {
             active = true
         } else {
             active = false
         }
+        
+        if sessionID == -1 {
+            startNewSession()
+        } else {
+            startNewSessionIfNecessary()
+        }
     }
     
     public func execute<T: RawEvent>(event: T?) -> T? {
-        if !active {
-            return event
+        guard let event else { return nil }
+        guard let event = defaultEventHandler(event: event) else { return nil }
+        
+        if var trackEvent = event as? TrackEvent {
+            let eventName = trackEvent.event
+            
+            // check if time has elapsed and kick of a new session if it has.
+            // this will send events back through to do the tasks; nothing really happens inline.
+            startNewSessionIfNecessary()
+            
+            // if it's a start event, set a new sessionID
+            if eventName == Constants.ampSessionStartEvent {
+                sessionID = newTimestamp()
+            }
+            
+            // if it's amp specific stuff, disable all the integrations except for amp.
+            if eventName.contains(Constants.ampPrefix) || eventName == Constants.ampSessionStartEvent || eventName == Constants.ampSessionEndEvent {
+                var integrations = disableAllIntegrations(integrations: trackEvent.integrations)
+                integrations?.setValue(["session_id": sessionID], forKeyPath: KeyPath(key))
+                trackEvent.integrations = integrations
+            }
+            
+            // handle events that need to be re-generated back to amplitude.
+            // block the originals from going to amplitude as well.
+            switch trackEvent.event {
+            case "Application Opened":
+                analytics?.track(name: Constants.ampAppOpenedEvent, properties: trackEvent.properties)
+                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+            case "Application Installed":
+                analytics?.track(name: Constants.ampAppInstalledEvent, properties: trackEvent.properties)
+                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+            case "Application Updated":
+                analytics?.track(name: Constants.ampAppUpdatedEvent, properties: trackEvent.properties)
+                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+            case "Application Backgrounded":
+                analytics?.track(name: Constants.ampAppBackgroundedEvent, properties: trackEvent.properties)
+                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+            case "Application Foregrounded":
+                // amplitude doesn't need this one, it's redundant.
+                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+            default:
+                break
+            }
+            
+            return trackEvent as? T
         }
         
-        var result: T? = event
-        switch result {
-        case let r as IdentifyEvent:
-            result = self.identify(event: r) as? T
-            lastEventFiredTime = Date()
-        case let r as TrackEvent:
-            result = self.track(event: r) as? T
-        case let r as ScreenEvent:
-            result = self.screen(event: r) as? T
-            lastEventFiredTime = Date()
-        case let r as AliasEvent:
-            result = self.alias(event: r) as? T
-            lastEventFiredTime = Date()
-        case let r as GroupEvent:
-            result = self.group(event: r) as? T
-            lastEventFiredTime = Date()
-        default:
-            break
-        }
-        return result
-    }
-    
-    public func track(event: TrackEvent) -> TrackEvent? {
-        if event.event != "Application Opened" {
-            lastEventFiredTime = Date()
-        }
-        
-        guard let returnEvent = insertSession(event: event) as? TrackEvent else {
-            return nil
-        }
-        return returnEvent
-    }
-    
-    public func identify(event: IdentifyEvent) -> IdentifyEvent? {
-        guard let returnEvent = insertSession(event: event) as? IdentifyEvent else {
-            return nil
-        }
-        return returnEvent
-    }
-    
-    public func alias(event: AliasEvent) -> AliasEvent? {
-        guard let returnEvent = insertSession(event: event) as? AliasEvent else {
-            return nil
-        }
-        return returnEvent
-    }
-    
-    public func screen(event: ScreenEvent) -> ScreenEvent? {
-        guard let returnEvent = insertSession(event: event) as? ScreenEvent else {
-            return nil
-        }
-        return returnEvent
-    }
-    
-    public func group(event: GroupEvent) -> GroupEvent? {
-        guard let returnEvent = insertSession(event: event) as? GroupEvent else {
-            return nil
-        }
-        return returnEvent
+        lastEventTime = newTimestamp()
+        return event
     }
     
     public func reset() {
-         sessionID = nil
+        resetSession()
     }
     
     public func applicationWillEnterForeground(application: UIApplication?) {
-        if Date().timeIntervalSince(lastEventFiredTime) >= minSessionTime {
-            sessionID = Date().timeIntervalSince1970
-        }
-        
-        analytics?.log(message: "Amplitude Session ID: \(sessionID ?? -1)")
+        startNewSessionIfNecessary()
+        print("Foreground: \(sessionID)")
+        analytics?.log(message: "Amplitude Session ID: \(sessionID)")
     }
     
     public func applicationWillResignActive(application: UIApplication?) {
-        // Exposed if reacting to lifecycle events is needed
-    }
-    
-}
-
-
-// MARK: - AmplitudeSession Helper Methods
-extension AmplitudeSession {
-    func insertSession(event: RawEvent) -> RawEvent {
-        var returnEvent = event
-        if var integrations = event.integrations?.dictionaryValue,
-           let sessionID = sessionID {
-            
-            integrations[key] = ["session_id": (Int(sessionID) * 1000)]
-            returnEvent.integrations = try? JSON(integrations as Any)
-        }
-        return returnEvent
+        print("Background: \(sessionID)")
+        lastEventTime = newTimestamp()
     }
 }
 
 extension AmplitudeSession: VersionedPlugin {
     public static func version() -> String {
         return __destination_version
+    }
+}
+
+
+// MARK: - AmplitudeSession Helper Methods
+
+extension AmplitudeSession {
+    private func disableAllIntegrations(integrations: JSON?) -> JSON? {
+        var result = integrations
+        if let keys = integrations?.dictionaryValue?.keys {
+            for key in keys {
+                result?.setValue(false, forKeyPath: KeyPath(key))
+            }
+        }
+        // make sure segment is disabled too.
+        result?.setValue(false, forKeyPath: KeyPath("Segment.io"))
+        return result
+    }
+    
+    private func defaultEventHandler<T: RawEvent>(event: T) -> T? {
+        guard let returnEvent = insertSession(event: event) as? T else {
+            return nil
+        }
+        return returnEvent
+    }
+    
+    private func resetSession() {
+        if sessionID != -1 {
+            endSession()
+        }
+        startNewSession()
+    }
+    
+    private func startNewSession() {
+        analytics?.track(name: Constants.ampSessionStartEvent)
+    }
+    
+    private func startNewSessionIfNecessary() {
+        let timestamp = newTimestamp()
+        let withinSessionLimit = withinMinSessionTime(timestamp: timestamp)
+        if sessionID >= 0 && withinSessionLimit {
+            return
+        }
+        // we'll consider this our new lastEventTime
+        lastEventTime = timestamp
+        // end previous session
+        endSession()
+        // start new session
+        startNewSession()
+    }
+    
+    private func endSession() {
+        analytics?.track(name: Constants.ampSessionEndEvent)
+    }
+    
+    private func insertSession(event: RawEvent) -> RawEvent {
+        var returnEvent = event
+        if var integrations = event.integrations?.dictionaryValue {
+            integrations[key] = ["session_id": sessionID]
+            returnEvent.integrations = try? JSON(integrations as Any)
+        }
+        return returnEvent
+    }
+    
+    private func newTimestamp() -> Int64 {
+        return Int64(Date().timeIntervalSince1970 * 1000)
+    }
+    
+    private func withinMinSessionTime(timestamp: Int64) -> Bool {
+        let minMilisecondsBetweenSessions = 300_000
+        let timeDelta = timestamp - self.lastEventTime
+        return timeDelta < minMilisecondsBetweenSessions
+    }
+}
+
+// MARK: - Storage for Session information
+
+extension AmplitudeSession {
+    internal class Storage {
+        internal struct Constants {
+            static let lastEventID = "last_event_id"
+            static let previousSessionID = "previous_session_id"
+            static let lastEventTime = "last_event_time"
+        }
+        
+        private var userDefaults = UserDefaults(suiteName: "com.segment.amplitude.session")
+        private func isBasicType<T: Codable>(value: T?) -> Bool {
+            var result = false
+            if value == nil {
+                result = true
+            } else {
+                switch value {
+                // NSNull is not valid for UserDefaults
+                //case is NSNull:
+                //    fallthrough
+                case is Decimal:
+                    fallthrough
+                case is NSNumber:
+                    fallthrough
+                case is Bool:
+                    fallthrough
+                case is String:
+                    result = true
+                default:
+                    break
+                }
+            }
+            return result
+        }
+        
+        func read<T: Codable>(key: String) -> T? {
+            return userDefaults?.value(forKey: key) as? T
+        }
+        
+        func write<T: Codable>(key: String, value: T?) {
+            if let value, isBasicType(value: value) {
+                userDefaults?.setValue(value, forKey: key)
+            }
+        }
     }
 }
