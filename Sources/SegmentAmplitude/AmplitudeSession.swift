@@ -60,7 +60,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     @Atomic var sessionID: Int64 {
         didSet {
             storage.write(key: Storage.Constants.previousSessionID, value: sessionID)
-            print("sessionID = \(sessionID)")
+            //print("sessionID = \(sessionID)")
         }
     }
     
@@ -73,7 +73,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     public init() {
         self.sessionID = storage.read(key: Storage.Constants.previousSessionID) ?? -1
         self.lastEventTime = storage.read(key: Storage.Constants.lastEventTime) ?? -1
-        print("startup sessionID = \(sessionID)")
+        //print("startup sessionID = \(sessionID)")
     }
     
     public func update(settings: Settings, type: UpdateType) {
@@ -177,6 +177,8 @@ extension AmplitudeSession {
                 result?.setValue(false, forKeyPath: KeyPath(key))
             }
         }
+        // make sure segment is disabled too.
+        result?.setValue(false, forKeyPath: KeyPath("Segment.io"))
         return result
     }
     
@@ -195,10 +197,7 @@ extension AmplitudeSession {
     }
     
     private func startNewSession() {
-        // session ID will get set the in `execute`.
-        //DispatchQueue.main.async { [weak self] in
-            analytics?.track(name: Constants.ampSessionStartEvent)
-        //}
+        analytics?.track(name: Constants.ampSessionStartEvent)
     }
     
     private func startNewSessionIfNecessary() {
@@ -216,9 +215,7 @@ extension AmplitudeSession {
     }
     
     private func endSession() {
-        //DispatchQueue.main.async { [weak self] in
-            analytics?.track(name: Constants.ampSessionEndEvent)
-        //}
+        analytics?.track(name: Constants.ampSessionEndEvent)
     }
     
     private func insertSession(event: RawEvent) -> RawEvent {

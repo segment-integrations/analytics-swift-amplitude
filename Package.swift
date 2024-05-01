@@ -19,8 +19,7 @@ let package = Package(
     dependencies: [
         // Dependencies declare other packages that this package depends on.
         // .package(url: /* package url */, from: "1.0.0"),
-        .package(url: "https://github.com/segmentio/analytics-swift.git", from: "1.5.9"),
-        .package(url: "https://github.com/amplitude/Amplitude-Swift.git", from: "1.4.4")
+        .package(url: "https://github.com/segmentio/analytics-swift.git", from: "1.5.9")
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -28,10 +27,10 @@ let package = Package(
         .target(
             name: "SegmentAmplitude",
             dependencies: [
-                .product(name: "Segment", package: "analytics-swift"),
-                .product(name: "AmplitudeSwift", package: "Amplitude-Swift")
-            ]),
-        
+                .product(name: "Segment", package: "analytics-swift")
+            ],
+            resources: [.process("Resources")]
+        )
         // TESTS ARE HANDLED VIA THE EXAMPLE APP.
     ]
 )
