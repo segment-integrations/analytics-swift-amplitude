@@ -55,12 +55,13 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     
     @Atomic private var active = false
     @Atomic private var inForeground: Bool = false
+    @Atomic private var resetPending: Bool = false
     private var storage = Storage()
     
     @Atomic var sessionID: Int64 {
         didSet {
             storage.write(key: Storage.Constants.previousSessionID, value: sessionID)
-            //print("sessionID = \(sessionID)")
+            print("sessionID = \(sessionID)")
         }
     }
     
@@ -73,7 +74,17 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     public init() {
         self.sessionID = storage.read(key: Storage.Constants.previousSessionID) ?? -1
         self.lastEventTime = storage.read(key: Storage.Constants.lastEventTime) ?? -1
-        //print("startup sessionID = \(sessionID)")
+        print("startup sessionID = \(sessionID)")
+    }
+    
+    public func configure(analytics: Analytics) {
+        self.analytics = analytics
+        
+        if sessionID == -1 {
+            startNewSession()
+        } else {
+            startNewSessionIfNecessary()
+        }
     }
     
     public func update(settings: Settings, type: UpdateType) {
@@ -84,17 +95,13 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         } else {
             active = false
         }
-        
-        if sessionID == -1 {
-            startNewSession()
-        } else {
-            startNewSessionIfNecessary()
-        }
     }
     
     public func execute<T: RawEvent>(event: T?) -> T? {
         guard let event else { return nil }
         var workingEvent = defaultEventHandler(event: event)
+        
+        print("execute called")
         
         // check if time has elapsed and kick of a new session if it has.
         // this will send events back through to do the tasks; nothing really happens inline.
@@ -126,10 +133,15 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         if var trackEvent = workingEvent as? TrackEvent {
             let eventName = trackEvent.event
         
-            
             // if it's a start event, set a new sessionID
             if eventName == Constants.ampSessionStartEvent {
-                sessionID = newTimestamp()
+                //sessionID = newTimestamp()
+                resetPending = false
+                print("NewSession = \(sessionID)")
+            }
+            
+            if eventName == Constants.ampSessionEndEvent {
+                print("EndSession = \(sessionID)")
             }
             
             // if it's amp specific stuff, disable all the integrations except for amp.
@@ -221,10 +233,14 @@ extension AmplitudeSession {
     }
     
     private func startNewSession() {
+        if resetPending { return }
+        resetPending = true
+        sessionID = newTimestamp()
         analytics?.track(name: Constants.ampSessionStartEvent)
     }
     
     private func startNewSessionIfNecessary() {
+        if resetPending { return }
         let timestamp = newTimestamp()
         let withinSessionLimit = withinMinSessionTime(timestamp: timestamp)
         if sessionID >= 0 && withinSessionLimit {
