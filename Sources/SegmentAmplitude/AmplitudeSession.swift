@@ -51,6 +51,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         static let ampAppBackgroundedEvent = "\(ampPrefix)Application Backgrounded"
         static let ampDeepLinkOpenedEvent = "\(ampPrefix)Deep Link Opened"
         static let ampScreenViewedEvent = "\(ampPrefix)Screen Viewed"
+        static let ampScreenNameProperty = "\(ampPrefix)Screen Name"
     }
     
     @Atomic private var active = false
@@ -120,7 +121,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
                 if adjustedProps == nil {
                     adjustedProps = try? JSON(["name": screenName])
                 } else {
-                    adjustedProps?.setValue(screenName, forKeyPath: KeyPath("name"))
+                    adjustedProps?.setValue(screenName, forKeyPath: KeyPath(Constants.ampScreenNameProperty))
                 }
                 // this will come back through later for the above if statement.
                 analytics?.screen(title: Constants.ampScreenViewedEvent, properties: adjustedProps)
