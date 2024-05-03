@@ -54,6 +54,8 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         static let ampScreenNameProperty = "\(ampPrefix)Screen Name"
     }
     
+    public var logging: Bool = false
+    
     @Atomic private var active = false
     @Atomic private var inForeground: Bool = false
     @Atomic private var resetPending: Bool = false
@@ -63,7 +65,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     @Atomic internal var sessionID: Int64 {
         didSet {
             storage.write(key: Storage.Constants.previousSessionID, value: sessionID)
-            print("sessionID set to: \(sessionID)")
+            debugLog("sessionID set to: \(sessionID)")
         }
     }
     
@@ -76,7 +78,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     public init() {
         self.sessionID = storage.read(key: Storage.Constants.previousSessionID) ?? -1
         self.lastEventTime = storage.read(key: Storage.Constants.lastEventTime) ?? -1
-        print("startup sessionID = \(sessionID)")
+        debugLog("startup sessionID = \(sessionID)")
     }
     
     public func configure(analytics: Analytics) {
@@ -103,7 +105,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         guard let event else { return nil }
         var workingEvent = defaultEventHandler(event: event)
         
-        print("execute called")
+        debugLog("execute called")
         
         // check if time has elapsed and kick of a new session if it has.
         // this will send events back through to do the tasks; nothing really happens inline.
@@ -130,11 +132,11 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
             if eventName == Constants.ampSessionStartEvent {
                 resetPending = false
                 eventSessionID = sessionID
-                print("NewSession = \(eventSessionID)")
+                debugLog("NewSession = \(eventSessionID)")
             }
             
             if eventName == Constants.ampSessionEndEvent {
-                print("EndSession = \(eventSessionID)")
+                debugLog("EndSession = \(eventSessionID)")
             }
             
             // if it's amp specific stuff, disable all the integrations except for amp.
@@ -179,12 +181,11 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     
     public func applicationWillEnterForeground(application: UIApplication?) {
         startNewSessionIfNecessary()
-        print("Foreground: \(eventSessionID)")
-        analytics?.log(message: "Amplitude Session ID: \(eventSessionID)")
+        debugLog("Foreground: \(eventSessionID)")
     }
     
     public func applicationWillResignActive(application: UIApplication?) {
-        print("Background: \(eventSessionID)")
+        debugLog("Background: \(eventSessionID)")
         lastEventTime = newTimestamp()
     }
 }
@@ -278,6 +279,13 @@ extension AmplitudeSession {
         let minMilisecondsBetweenSessions = 300_000
         let timeDelta = timestamp - self.lastEventTime
         return timeDelta < minMilisecondsBetweenSessions
+    }
+    
+    private func debugLog(_ str: String) {
+        if logging {
+            print("[AmplitudeSession] \(str)")
+        }
+        analytics?.log(message: "[AmplitudeSession] \(str)")
     }
 }
 
