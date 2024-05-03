@@ -111,21 +111,23 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         // handle screen
         if var screenEvent = workingEvent as? ScreenEvent, let screenName = screenEvent.name {
             // if it's amp specific stuff, disable all the integrations except for amp.
-            if screenName.contains(Constants.ampPrefix) {
+            /*if screenName.contains(Constants.ampPrefix) {
                 var integrations = disableAllIntegrations(integrations: screenEvent.integrations)
                 integrations?.setValue(["session_id": sessionID], forKeyPath: KeyPath(key))
                 screenEvent.integrations = integrations
-            } else {
+            } else*/ //{
                 var adjustedProps = screenEvent.properties
                 // amp needs the `name` in the properties
                 if adjustedProps == nil {
                     adjustedProps = try? JSON(["name": screenName])
                 } else {
-                    adjustedProps?.setValue(screenName, forKeyPath: KeyPath(Constants.ampScreenNameProperty))
+                    adjustedProps?.setValue(screenName, forKeyPath: KeyPath("name"))
                 }
+                screenEvent.properties = adjustedProps
                 // this will come back through later for the above if statement.
-                analytics?.screen(title: Constants.ampScreenViewedEvent, properties: adjustedProps)
-            }
+                //analytics?.screen(title: Constants.ampScreenViewedEvent, properties: adjustedProps)
+                //analytics?.track(name: Constants.ampScreenViewedEvent, properties: adjustedProps)
+            //}
             
             workingEvent = screenEvent as? T
         }
