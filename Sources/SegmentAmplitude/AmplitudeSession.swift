@@ -59,14 +59,15 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     @Atomic private var resetPending: Bool = false
     private var storage = Storage()
     
-    @Atomic var sessionID: Int64 {
+    internal var eventSessionID: Int64 = -1
+    @Atomic internal var sessionID: Int64 {
         didSet {
             storage.write(key: Storage.Constants.previousSessionID, value: sessionID)
-            print("sessionID = \(sessionID)")
+            print("sessionID set to: \(sessionID)")
         }
     }
     
-    @Atomic var lastEventTime: Int64 {
+    @Atomic internal var lastEventTime: Int64 {
         didSet {
             storage.write(key: Storage.Constants.lastEventTime, value: lastEventTime)
         }
@@ -110,25 +111,14 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         
         // handle screen
         if var screenEvent = workingEvent as? ScreenEvent, let screenName = screenEvent.name {
-            // if it's amp specific stuff, disable all the integrations except for amp.
-            /*if screenName.contains(Constants.ampPrefix) {
-                var integrations = disableAllIntegrations(integrations: screenEvent.integrations)
-                integrations?.setValue(["session_id": sessionID], forKeyPath: KeyPath(key))
-                screenEvent.integrations = integrations
-            } else*/ //{
-                var adjustedProps = screenEvent.properties
-                // amp needs the `name` in the properties
-                if adjustedProps == nil {
-                    adjustedProps = try? JSON(["name": screenName])
-                } else {
-                    adjustedProps?.setValue(screenName, forKeyPath: KeyPath("name"))
-                }
-                screenEvent.properties = adjustedProps
-                // this will come back through later for the above if statement.
-                //analytics?.screen(title: Constants.ampScreenViewedEvent, properties: adjustedProps)
-                //analytics?.track(name: Constants.ampScreenViewedEvent, properties: adjustedProps)
-            //}
-            
+            var adjustedProps = screenEvent.properties
+            // amp needs the `name` in the properties
+            if adjustedProps == nil {
+                adjustedProps = try? JSON(["name": screenName])
+            } else {
+                adjustedProps?.setValue(screenName, forKeyPath: KeyPath("name"))
+            }
+            screenEvent.properties = adjustedProps
             workingEvent = screenEvent as? T
         }
         
@@ -138,19 +128,19 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         
             // if it's a start event, set a new sessionID
             if eventName == Constants.ampSessionStartEvent {
-                //sessionID = newTimestamp()
                 resetPending = false
-                print("NewSession = \(sessionID)")
+                eventSessionID = sessionID
+                print("NewSession = \(eventSessionID)")
             }
             
             if eventName == Constants.ampSessionEndEvent {
-                print("EndSession = \(sessionID)")
+                print("EndSession = \(eventSessionID)")
             }
             
             // if it's amp specific stuff, disable all the integrations except for amp.
             if eventName.contains(Constants.ampPrefix) || eventName == Constants.ampSessionStartEvent || eventName == Constants.ampSessionEndEvent {
                 var integrations = disableAllIntegrations(integrations: trackEvent.integrations)
-                integrations?.setValue(["session_id": sessionID], forKeyPath: KeyPath(key))
+                integrations?.setValue(["session_id": eventSessionID], forKeyPath: KeyPath(key))
                 trackEvent.integrations = integrations
             }
             
@@ -189,12 +179,12 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     
     public func applicationWillEnterForeground(application: UIApplication?) {
         startNewSessionIfNecessary()
-        print("Foreground: \(sessionID)")
-        analytics?.log(message: "Amplitude Session ID: \(sessionID)")
+        print("Foreground: \(eventSessionID)")
+        analytics?.log(message: "Amplitude Session ID: \(eventSessionID)")
     }
     
     public func applicationWillResignActive(application: UIApplication?) {
-        print("Background: \(sessionID)")
+        print("Background: \(eventSessionID)")
         lastEventTime = newTimestamp()
     }
 }
@@ -239,16 +229,28 @@ extension AmplitudeSession {
         if resetPending { return }
         resetPending = true
         sessionID = newTimestamp()
+        if eventSessionID == -1 {
+            // we only wanna do this if we had nothing before, so each
+            // event actually HAS a sessionID of some kind associated.
+            eventSessionID = sessionID
+        }
         analytics?.track(name: Constants.ampSessionStartEvent)
     }
     
     private func startNewSessionIfNecessary() {
+        if eventSessionID == -1 {
+            // we only wanna do this if we had nothing before, so each
+            // event actually HAS a sessionID of some kind associated.
+            eventSessionID = sessionID
+        }
+        
         if resetPending { return }
         let timestamp = newTimestamp()
         let withinSessionLimit = withinMinSessionTime(timestamp: timestamp)
         if sessionID >= 0 && withinSessionLimit {
             return
         }
+        
         // we'll consider this our new lastEventTime
         lastEventTime = timestamp
         // end previous session
@@ -264,7 +266,7 @@ extension AmplitudeSession {
     private func insertSession(event: RawEvent) -> RawEvent {
         var returnEvent = event
         if var integrations = event.integrations?.dictionaryValue {
-            integrations[key] = ["session_id": sessionID]
+            integrations[key] = ["session_id": eventSessionID]
             returnEvent.integrations = try? JSON(integrations as Any)
         }
         return returnEvent
