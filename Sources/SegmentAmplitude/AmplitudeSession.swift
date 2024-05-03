@@ -51,20 +51,25 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         static let ampAppBackgroundedEvent = "\(ampPrefix)Application Backgrounded"
         static let ampDeepLinkOpenedEvent = "\(ampPrefix)Deep Link Opened"
         static let ampScreenViewedEvent = "\(ampPrefix)Screen Viewed"
+        static let ampScreenNameProperty = "\(ampPrefix)Screen Name"
     }
+    
+    public var logging: Bool = false
     
     @Atomic private var active = false
     @Atomic private var inForeground: Bool = false
+    @Atomic private var resetPending: Bool = false
     private var storage = Storage()
     
-    @Atomic var sessionID: Int64 {
+    internal var eventSessionID: Int64 = -1
+    @Atomic internal var sessionID: Int64 {
         didSet {
             storage.write(key: Storage.Constants.previousSessionID, value: sessionID)
-            //print("sessionID = \(sessionID)")
+            debugLog("sessionID set to: \(sessionID)")
         }
     }
     
-    @Atomic var lastEventTime: Int64 {
+    @Atomic internal var lastEventTime: Int64 {
         didSet {
             storage.write(key: Storage.Constants.lastEventTime, value: lastEventTime)
         }
@@ -73,7 +78,17 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     public init() {
         self.sessionID = storage.read(key: Storage.Constants.previousSessionID) ?? -1
         self.lastEventTime = storage.read(key: Storage.Constants.lastEventTime) ?? -1
-        //print("startup sessionID = \(sessionID)")
+        debugLog("startup sessionID = \(sessionID)")
+    }
+    
+    public func configure(analytics: Analytics) {
+        self.analytics = analytics
+        
+        if sessionID == -1 {
+            startNewSession()
+        } else {
+            startNewSessionIfNecessary()
+        }
     }
     
     public func update(settings: Settings, type: UpdateType) {
@@ -84,34 +99,50 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         } else {
             active = false
         }
-        
-        if sessionID == -1 {
-            startNewSession()
-        } else {
-            startNewSessionIfNecessary()
-        }
     }
     
     public func execute<T: RawEvent>(event: T?) -> T? {
         guard let event else { return nil }
-        guard let event = defaultEventHandler(event: event) else { return nil }
+        var workingEvent = defaultEventHandler(event: event)
         
-        if var trackEvent = event as? TrackEvent {
+        debugLog("execute called")
+        
+        // check if time has elapsed and kick of a new session if it has.
+        // this will send events back through to do the tasks; nothing really happens inline.
+        startNewSessionIfNecessary()
+        
+        // handle screen
+        if var screenEvent = workingEvent as? ScreenEvent, let screenName = screenEvent.name {
+            var adjustedProps = screenEvent.properties
+            // amp needs the `name` in the properties
+            if adjustedProps == nil {
+                adjustedProps = try? JSON(["name": screenName])
+            } else {
+                adjustedProps?.setValue(screenName, forKeyPath: KeyPath("name"))
+            }
+            screenEvent.properties = adjustedProps
+            workingEvent = screenEvent as? T
+        }
+        
+        // handle track
+        if var trackEvent = workingEvent as? TrackEvent {
             let eventName = trackEvent.event
-            
-            // check if time has elapsed and kick of a new session if it has.
-            // this will send events back through to do the tasks; nothing really happens inline.
-            startNewSessionIfNecessary()
-            
+        
             // if it's a start event, set a new sessionID
             if eventName == Constants.ampSessionStartEvent {
-                sessionID = newTimestamp()
+                resetPending = false
+                eventSessionID = sessionID
+                debugLog("NewSession = \(eventSessionID)")
+            }
+            
+            if eventName == Constants.ampSessionEndEvent {
+                debugLog("EndSession = \(eventSessionID)")
             }
             
             // if it's amp specific stuff, disable all the integrations except for amp.
             if eventName.contains(Constants.ampPrefix) || eventName == Constants.ampSessionStartEvent || eventName == Constants.ampSessionEndEvent {
                 var integrations = disableAllIntegrations(integrations: trackEvent.integrations)
-                integrations?.setValue(["session_id": sessionID], forKeyPath: KeyPath(key))
+                integrations?.setValue(["session_id": eventSessionID], forKeyPath: KeyPath(key))
                 trackEvent.integrations = integrations
             }
             
@@ -137,11 +168,11 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
                 break
             }
             
-            return trackEvent as? T
+            workingEvent = trackEvent as? T
         }
         
         lastEventTime = newTimestamp()
-        return event
+        return workingEvent
     }
     
     public func reset() {
@@ -150,12 +181,11 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     
     public func applicationWillEnterForeground(application: UIApplication?) {
         startNewSessionIfNecessary()
-        print("Foreground: \(sessionID)")
-        analytics?.log(message: "Amplitude Session ID: \(sessionID)")
+        debugLog("Foreground: \(eventSessionID)")
     }
     
     public func applicationWillResignActive(application: UIApplication?) {
-        print("Background: \(sessionID)")
+        debugLog("Background: \(eventSessionID)")
         lastEventTime = newTimestamp()
     }
 }
@@ -177,8 +207,6 @@ extension AmplitudeSession {
                 result?.setValue(false, forKeyPath: KeyPath(key))
             }
         }
-        // make sure segment is disabled too.
-        result?.setValue(false, forKeyPath: KeyPath("Segment.io"))
         return result
     }
     
@@ -197,15 +225,31 @@ extension AmplitudeSession {
     }
     
     private func startNewSession() {
+        if resetPending { return }
+        resetPending = true
+        sessionID = newTimestamp()
+        if eventSessionID == -1 {
+            // we only wanna do this if we had nothing before, so each
+            // event actually HAS a sessionID of some kind associated.
+            eventSessionID = sessionID
+        }
         analytics?.track(name: Constants.ampSessionStartEvent)
     }
     
     private func startNewSessionIfNecessary() {
+        if eventSessionID == -1 {
+            // we only wanna do this if we had nothing before, so each
+            // event actually HAS a sessionID of some kind associated.
+            eventSessionID = sessionID
+        }
+        
+        if resetPending { return }
         let timestamp = newTimestamp()
         let withinSessionLimit = withinMinSessionTime(timestamp: timestamp)
         if sessionID >= 0 && withinSessionLimit {
             return
         }
+        
         // we'll consider this our new lastEventTime
         lastEventTime = timestamp
         // end previous session
@@ -221,7 +265,7 @@ extension AmplitudeSession {
     private func insertSession(event: RawEvent) -> RawEvent {
         var returnEvent = event
         if var integrations = event.integrations?.dictionaryValue {
-            integrations[key] = ["session_id": sessionID]
+            integrations[key] = ["session_id": eventSessionID]
             returnEvent.integrations = try? JSON(integrations as Any)
         }
         return returnEvent
@@ -235,6 +279,13 @@ extension AmplitudeSession {
         let minMilisecondsBetweenSessions = 300_000
         let timeDelta = timestamp - self.lastEventTime
         return timeDelta < minMilisecondsBetweenSessions
+    }
+    
+    private func debugLog(_ str: String) {
+        if logging {
+            print("[AmplitudeSession] \(str)")
+        }
+        analytics?.log(message: "[AmplitudeSession] \(str)")
     }
 }
 
