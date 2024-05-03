@@ -206,8 +206,6 @@ extension AmplitudeSession {
                 result?.setValue(false, forKeyPath: KeyPath(key))
             }
         }
-        // make sure segment is disabled too.
-        result?.setValue(false, forKeyPath: KeyPath("Segment.io"))
         return result
     }
     
