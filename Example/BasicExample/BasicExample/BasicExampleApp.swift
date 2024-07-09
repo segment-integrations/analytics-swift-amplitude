@@ -26,7 +26,12 @@ extension Analytics {
             instance = Analytics(configuration: Configuration(writeKey: "<WRITE_KEY>")
                         .flushAt(3)
                         .trackApplicationLifecycleEvents(true))
-            instance?.add(plugin: AmplitudeSession())
+            instance?.add(plugin: AmplitudeSession(
+                enableSessionEvents: true,
+                enableLifecycleEvents: true,
+                enableScreenEvents: true,
+                enableDeepLinkEvents: true
+            ))
         }
         
         return instance!
