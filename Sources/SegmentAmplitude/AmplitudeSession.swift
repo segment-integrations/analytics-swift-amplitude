@@ -40,21 +40,12 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     public var type = PluginType.enrichment
     public weak var analytics: Analytics?
     
-    internal struct Constants {
-        static let ampPrefix = "[Amplitude] "
-        
-        static let ampSessionEndEvent = "session_end"
-        static let ampSessionStartEvent = "session_start"
-        static let ampAppInstalledEvent = "\(ampPrefix)Application Installed"
-        static let ampAppUpdatedEvent = "\(ampPrefix)Application Updated"
-        static let ampAppOpenedEvent = "\(ampPrefix)Application Opened"
-        static let ampAppBackgroundedEvent = "\(ampPrefix)Application Backgrounded"
-        static let ampDeepLinkOpenedEvent = "\(ampPrefix)Deep Link Opened"
-        static let ampScreenViewedEvent = "\(ampPrefix)Screen Viewed"
-        static let ampScreenNameProperty = "\(ampPrefix)Screen Name"
-    }
-    
     public var logging: Bool = false
+    
+    private let enableSessionEvents: Bool
+    private let enableLifecycleEvents: Bool
+    private let enableScreenEvents: Bool
+    private let enableDeepLinkEvents: Bool 
     
     @Atomic private var active = false
     @Atomic private var inForeground: Bool = false
@@ -75,9 +66,20 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         }
     }
     
-    public init() {
+    public init(
+        enableSessionEvents: Bool = true,
+        enableLifecycleEvents: Bool = false,
+        enableScreenEvents: Bool = false,
+        enableDeepLinkEvents: Bool = false
+    ) {
         self.sessionID = storage.read(key: Storage.Constants.previousSessionID) ?? -1
         self.lastEventTime = storage.read(key: Storage.Constants.lastEventTime) ?? -1
+        
+        self.enableSessionEvents = enableSessionEvents
+        self.enableScreenEvents = enableScreenEvents
+        self.enableLifecycleEvents = enableLifecycleEvents
+        self.enableDeepLinkEvents = enableDeepLinkEvents
+        
         debugLog("startup sessionID = \(sessionID)")
     }
     
@@ -112,6 +114,8 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         startNewSessionIfNecessary()
         
         // handle screen
+    
+        // this code works off the destination action logic.
         if var screenEvent = workingEvent as? ScreenEvent, let screenName = screenEvent.name {
             var adjustedProps = screenEvent.properties
             // amp needs the `name` in the properties
@@ -121,8 +125,22 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
                 adjustedProps?.setValue(screenName, forKeyPath: KeyPath("name"))
             }
             screenEvent.properties = adjustedProps
+            
+            // if we're sending Amplitude's definition of a screen event ...
+            if enableScreenEvents {
+                // set the keyname amplitude wants
+                adjustedProps?.setValue(screenName, forKeyPath: KeyPath(Constants.ampScreenNameProperty))
+                // remove the unnecessary `name` property.
+                adjustedProps = try? adjustedProps?.remove(key: "name")
+                // send a new track call for amplitude to pick up the screen.
+                analytics?.track(name: Constants.ampScreenViewedEvent, properties: adjustedProps)
+                // keep our current screen event from going to amplitude.
+                screenEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+            }
+            
             workingEvent = screenEvent as? T
         }
+
         
         // handle track
         if var trackEvent = workingEvent as? TrackEvent {
@@ -133,10 +151,18 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
                 resetPending = false
                 eventSessionID = sessionID
                 debugLog("NewSession = \(eventSessionID)")
+                if !enableSessionEvents {
+                    // don't send these events, so return nil to drop it.
+                    return nil
+                }
             }
             
             if eventName == Constants.ampSessionEndEvent {
                 debugLog("EndSession = \(eventSessionID)")
+                if !enableSessionEvents {
+                    // don't send these events, so return nil to drop it.
+                    return nil
+                }
             }
             
             // if it's amp specific stuff, disable all the integrations except for amp.
@@ -146,26 +172,34 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
                 trackEvent.integrations = integrations
             }
             
+            if enableDeepLinkEvents {
+                if eventName == "Deep Link Opened" {
+                    analytics?.track(name: Constants.ampDeepLinkOpenedEvent, properties: trackEvent.properties)
+                }
+            }
+            
             // handle events that need to be re-generated back to amplitude.
             // block the originals from going to amplitude as well.
-            switch trackEvent.event {
-            case "Application Opened":
-                analytics?.track(name: Constants.ampAppOpenedEvent, properties: trackEvent.properties)
-                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
-            case "Application Installed":
-                analytics?.track(name: Constants.ampAppInstalledEvent, properties: trackEvent.properties)
-                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
-            case "Application Updated":
-                analytics?.track(name: Constants.ampAppUpdatedEvent, properties: trackEvent.properties)
-                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
-            case "Application Backgrounded":
-                analytics?.track(name: Constants.ampAppBackgroundedEvent, properties: trackEvent.properties)
-                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
-            case "Application Foregrounded":
-                // amplitude doesn't need this one, it's redundant.
-                trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
-            default:
-                break
+            if enableLifecycleEvents {
+                switch trackEvent.event {
+                case "Application Opened":
+                    analytics?.track(name: Constants.ampAppOpenedEvent, properties: trackEvent.properties)
+                    trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+                case "Application Installed":
+                    analytics?.track(name: Constants.ampAppInstalledEvent, properties: trackEvent.properties)
+                    trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+                case "Application Updated":
+                    analytics?.track(name: Constants.ampAppUpdatedEvent, properties: trackEvent.properties)
+                    trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+                case "Application Backgrounded":
+                    analytics?.track(name: Constants.ampAppBackgroundedEvent, properties: trackEvent.properties)
+                    trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+                case "Application Foregrounded":
+                    // amplitude doesn't need this one, it's redundant.
+                    trackEvent.integrations?.setValue(false, forKeyPath: KeyPath(key))
+                default:
+                    break
+                }
             }
             
             workingEvent = trackEvent as? T
