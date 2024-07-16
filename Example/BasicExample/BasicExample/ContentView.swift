@@ -18,7 +18,7 @@ struct ContentView: View {
                     Text("Track")
                 }).padding(6)
                 Button(action: {
-                    Analytics.main.screen(title: "Screen appeared")
+                    Analytics.main.screen(title: "MyScreen")
                 }, label: {
                     Text("Screen")
                 }).padding(6)
