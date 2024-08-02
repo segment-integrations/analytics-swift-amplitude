@@ -19,10 +19,9 @@ Open your Package.swift file and add the following do your the `dependencies` se
 
 ```
 .package(
-            name: "Segment",
-            url: "https://github.com/segment-integrations/analytics-swift-amplitude.git",
-            from: "1.1.3"
-        ),
+    url: "https://github.com/segment-integrations/analytics-swift-amplitude.git",
+    from: "1.4.2"
+)
 ```
 
 
