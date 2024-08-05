@@ -5,6 +5,7 @@ Add Amplitude session tracking support to your applications via this plugin for 
 Note that this plugin simply adds session data for Amplitude, and events are sent via Cloud Mode.
 
 ⚠️ Github Issues disabled in this repository ⚠️
+
 Please direct all issues, bug reports, and feature enhancements to `friends@segment.com` so they can be resolved as efficiently as possible. 
 
 ## Adding the dependency
