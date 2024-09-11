@@ -5,17 +5,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/segmentio/analytics-swift.git",
       "state" : {
-        "revision" : "7eeb2abf8452153af056baae5369679589f10936",
-        "version" : "1.5.9"
+        "revision" : "338be8f55c83309f10d2cfd0193505117b4ab2d5",
+        "version" : "1.6.0"
       }
     },
     {
-      "identity" : "jsonsafeencoder-swift",
+      "identity" : "jsonsafeencoding-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/segmentio/jsonsafeencoder-swift.git",
+      "location" : "https://github.com/segmentio/jsonsafeencoding-swift.git",
       "state" : {
-        "revision" : "8b70dc8c01b7b041912e30e29d2b488a43f782ac",
-        "version" : "1.0.1"
+        "revision" : "af6a8b360984085e36c6341b21ecb35c12f47ebd",
+        "version" : "2.0.0"
       }
     },
     {
