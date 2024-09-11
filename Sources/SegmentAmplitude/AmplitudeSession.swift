@@ -48,22 +48,23 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     private var storage = Storage()
     
     internal var eventSessionID: Int64 = -1
-    @Atomic internal var sessionID: Int64 {
+    @Atomic internal var sessionID: Int64 = -1 {
         didSet {
             storage.write(key: Storage.Constants.previousSessionID, value: sessionID)
             debugLog("sessionID set to: \(sessionID)")
         }
     }
     
-    @Atomic internal var lastEventTime: Int64 {
+    @Atomic internal var lastEventTime: Int64 = -1 {
         didSet {
             storage.write(key: Storage.Constants.lastEventTime, value: lastEventTime)
         }
     }
     
     public init() {
-        self.sessionID = storage.read(key: Storage.Constants.previousSessionID) ?? -1
-        self.lastEventTime = storage.read(key: Storage.Constants.lastEventTime) ?? -1
+        _sessionID.set(storage.read(key: Storage.Constants.previousSessionID) ?? -1)
+        _lastEventTime.set(storage.read(key: Storage.Constants.lastEventTime) ?? -1)
+        
         debugLog("startup sessionID = \(sessionID)")
     }
     
@@ -81,9 +82,9 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         if type != .initial { return }
             
         if settings.hasIntegrationSettings(key: key) {
-            active = true
+            _active.set(true)
         } else {
-            active = false
+            _active.set(false)
         }
     }
     
@@ -118,7 +119,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
         
             // if it's a start event, set a new sessionID
             if eventName == Constants.ampSessionStartEvent {
-                resetPending = false
+                _resetPending.set(false)
                 eventSessionID = sessionID
                 debugLog("NewSession = \(eventSessionID)")
             }
@@ -137,7 +138,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
             workingEvent = trackEvent as? T
         }
         
-        lastEventTime = newTimestamp()
+        _lastEventTime.set(newTimestamp())
         return workingEvent
     }
     
@@ -152,7 +153,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     
     public func applicationWillResignActive(application: UIApplication?) {
         debugLog("Background: \(eventSessionID)")
-        lastEventTime = newTimestamp()
+        _lastEventTime.set(newTimestamp())
     }
 }
 
@@ -192,8 +193,8 @@ extension AmplitudeSession {
     
     private func startNewSession() {
         if resetPending { return }
-        resetPending = true
-        sessionID = newTimestamp()
+        _resetPending.set(true)
+        _sessionID.set(newTimestamp())
         if eventSessionID == -1 {
             // we only wanna do this if we had nothing before, so each
             // event actually HAS a sessionID of some kind associated.
@@ -217,7 +218,7 @@ extension AmplitudeSession {
         }
         
         // we'll consider this our new lastEventTime
-        lastEventTime = timestamp
+        _lastEventTime.set(timestamp)
         // end previous session
         endSession()
         // start new session
