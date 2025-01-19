@@ -128,6 +128,18 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
                 debugLog("EndSession = \(eventSessionID)")
             }
             
+            if active {
+                // "event_properties" have to contain "session_id" apart from "[Amplitude] Session Replay ID"
+                // - to make session replays appear in amplitude
+                var adjustedProps = trackEvent.properties
+                if adjustedProps == nil {
+                    adjustedProps = try? JSON(["session_id": eventSessionID])
+                } else {
+                    adjustedProps?.setValue(eventSessionID, forKeyPath: KeyPath("session_id"))
+                }
+                trackEvent.properties = adjustedProps
+            }
+            
             // if it's amp specific stuff, disable all the integrations except for amp.
             if eventName.contains(Constants.ampPrefix) || eventName == Constants.ampSessionStartEvent || eventName == Constants.ampSessionEndEvent {
                 var integrations = disableAllIntegrations(integrations: trackEvent.integrations)
