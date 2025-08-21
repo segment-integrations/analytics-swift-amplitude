@@ -30,6 +30,7 @@ import Foundation
 import Segment
 import UIKit
 
+
 @objc(SEGAmplitudeSession)
 public class ObjCAmplitudeSession: NSObject, ObjCPlugin, ObjCPluginShim {
     public func instance() -> EventPlugin { return AmplitudeSession() }
@@ -161,7 +162,21 @@ extension AmplitudeSession: VersionedPlugin {
     public static func version() -> String {
         return __destination_version
     }
+            
 }
+#if os(watchOS)
+extension AmplitudeSession: watchOSLifecycle {
+    public func applicationWillEnterForeground(watchExtension: WKExtension) {
+            startNewSessionIfNecessary()
+            debugLog("Foreground: \(eventSessionID)")
+        }
+    
+    public func applicationWillResignActive(watchExtension: WKExtension) {
+        debugLog("Background: \(eventSessionID)")
+        _lastEventTime.set(newTimestamp())
+        }
+    }
+#endif
 
 
 // MARK: - AmplitudeSession Helper Methods
