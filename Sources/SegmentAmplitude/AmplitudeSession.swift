@@ -107,7 +107,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
             if adjustedProps == nil {
                 adjustedProps = try? JSON(["name": screenName])
             } else {
-                adjustedProps?.setValue(screenName, forKeyPath: KeyPath("name"))
+                adjustedProps?.setValue(screenName, forKeyPath: JSONKeyPath("name"))
             }
             screenEvent.properties = adjustedProps
             workingEvent = screenEvent as? T
@@ -132,7 +132,7 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
             // if it's amp specific stuff, disable all the integrations except for amp.
             if eventName.contains(Constants.ampPrefix) || eventName == Constants.ampSessionStartEvent || eventName == Constants.ampSessionEndEvent {
                 var integrations = disableAllIntegrations(integrations: trackEvent.integrations)
-                integrations?.setValue(["session_id": eventSessionID], forKeyPath: KeyPath(key))
+                integrations?.setValue(["session_id": eventSessionID], forKeyPath: JSONKeyPath(key))
                 trackEvent.integrations = integrations
             }
             
@@ -186,7 +186,7 @@ extension AmplitudeSession {
         var result = integrations
         if let keys = integrations?.dictionaryValue?.keys {
             for key in keys {
-                result?.setValue(false, forKeyPath: KeyPath(key))
+                result?.setValue(false, forKeyPath: JSONKeyPath(key))
             }
         }
         return result
