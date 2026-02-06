@@ -28,7 +28,9 @@
 
 import Foundation
 import Segment
+#if !os(macOS)
 import UIKit
+#endif
 
 
 @objc(SEGAmplitudeSession)
@@ -36,7 +38,7 @@ public class ObjCAmplitudeSession: NSObject, ObjCPlugin, ObjCPluginShim {
     public func instance() -> EventPlugin { return AmplitudeSession() }
 }
 
-public class AmplitudeSession: EventPlugin, iOSLifecycle {
+public class AmplitudeSession: EventPlugin {
     public var key = "Actions Amplitude"
     public var type = PluginType.enrichment
     public weak var analytics: Analytics?
@@ -146,36 +148,53 @@ public class AmplitudeSession: EventPlugin, iOSLifecycle {
     public func reset() {
         resetSession()
     }
-    
-    public func applicationWillEnterForeground(application: UIApplication?) {
-        startNewSessionIfNecessary()
-        debugLog("Foreground: \(eventSessionID)")
-    }
-    
-    public func applicationWillResignActive(application: UIApplication?) {
-        debugLog("Background: \(eventSessionID)")
-        _lastEventTime.set(newTimestamp())
-    }
 }
 
 extension AmplitudeSession: VersionedPlugin {
     public static func version() -> String {
         return __destination_version
     }
-            
+
 }
-#if os(watchOS)
+
+// MARK: - Platform-Specific Lifecycle Support
+
+#if os(iOS) || os(tvOS)
+extension AmplitudeSession: iOSLifecycle {
+    public func applicationWillEnterForeground(application: UIApplication?) {
+        startNewSessionIfNecessary()
+        debugLog("Foreground: \(eventSessionID)")
+    }
+
+    public func applicationWillResignActive(application: UIApplication?) {
+        debugLog("Background: \(eventSessionID)")
+        _lastEventTime.set(newTimestamp())
+    }
+}
+#elseif os(watchOS)
 extension AmplitudeSession: watchOSLifecycle {
     public func applicationWillEnterForeground(watchExtension: WKExtension) {
-            startNewSessionIfNecessary()
-            debugLog("Foreground: \(eventSessionID)")
-        }
-    
+        startNewSessionIfNecessary()
+        debugLog("Foreground: \(eventSessionID)")
+    }
+
     public func applicationWillResignActive(watchExtension: WKExtension) {
         debugLog("Background: \(eventSessionID)")
         _lastEventTime.set(newTimestamp())
-        }
     }
+}
+#elseif os(macOS)
+extension AmplitudeSession: macOSLifecycle {
+    public func applicationWillBecomeActive() {
+        startNewSessionIfNecessary()
+        debugLog("Foreground: \(eventSessionID)")
+    }
+
+    public func applicationWillResignActive() {
+        debugLog("Background: \(eventSessionID)")
+        _lastEventTime.set(newTimestamp())
+    }
+}
 #endif
 
 
